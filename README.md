@@ -46,5 +46,9 @@ yarn install
 
 And next run development or production commands.
 
-### Customize configuration
-See [Configuration Reference](https://cli.vuejs.org/config/).
+## Screenshots
+![layers](/docs/screenshots/layers.png?raw=true "Layers")
+![details](/docs/screenshots/details.png?raw=true "Details of a track")
+![avurnav](/docs/screenshots/avurnav.png?raw=true "AVURNAVs")
+
+GPL-3.0 License @2020

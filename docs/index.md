@@ -47,5 +47,8 @@ yarn install
 And next run development or production commands.
 
 ## Screenshots
-![avurnav](docs/avurnav.png)
-#
+![layers](/screenshots/layers.png?raw=true "Layers")
+![details](/screenshots/details.png?raw=true "Details of a track")
+![avurnav](/screenshots/avurnav.png?raw=true "AVURNAVs")
+
+GPL-3.0 License @2020
