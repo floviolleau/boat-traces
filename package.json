@@ -17,7 +17,7 @@
         "core-js": "^3.6.5",
         "leaflet": "^1.7.1",
         "leaflet-gpx": "^1.5.0",
-        "leaflet.icon.glyph": "^0.3.0",
+        "leaflet.control.layers.tree": "^1.0.2",
         "randomcolor": "^0.6.2",
         "register-service-worker": "^1.7.1",
         "vue": "^2.6.11",

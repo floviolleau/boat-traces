@@ -22,7 +22,7 @@
 </script>
 
 <style>
-    @import "../node_modules/leaflet/dist/leaflet.css";
+    @import "~leaflet/dist/leaflet.css";
 
     body {
         padding: 0;

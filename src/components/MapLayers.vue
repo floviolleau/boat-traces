@@ -2,25 +2,26 @@
     <div class="map">
         <l-map :zoom="zoom" :center="center" ref="map">
             <l-tile-layer
-                    :visible=true
-                    name="Base"
-                    :url="url"
-                    :attribution="attribution"
-                    layer-type="base"
-            ></l-tile-layer>
-            <l-tile-layer
-                    :visible=true
-                    name="Sea info"
-                    :url="seaUrl"
-                    :attribution="seaAttribution"
-                    layer-type="overlay"
-            ></l-tile-layer>
-            <l-control-layers position="topright"></l-control-layers>
+                v-for="tileProvider in tileProviders"
+                :key="tileProvider.id"
+                :name="tileProvider.name"
+                :visible="tileProvider.visible"
+                :url="tileProvider.url"
+                :attribution="tileProvider.attribution"
+                :layer-type="tileProvider.layerType"
+                ref="tileProviders" />
+            <l-control-layers-tree
+                v-if="childLoaded"
+                position="topright"
+                :map="map"
+                :base-tree="baseTree"
+                :overlays-tree="overlaysTree" />
             <l-layer-group>
                 <l-layer-group
-                        :visible=true
-                        layer-type="overlay"
-                        name="Avis urgent aux navigateurs">
+                    :visible=true
+                    layer-type="overlay"
+                    name="Avis urgent aux navigateurs"
+                    ref="avurnav">
                     <l-marker v-for="marker in markers" :key="marker.id"
                               :visible="marker.visible"
                               :icon="marker.icon"
@@ -29,22 +30,22 @@
                     </l-marker>
                 </l-layer-group>
                 <l-layer-group
-                        :visible=true
-                        v-for="gpx in gpxs" :key="gpx.id"
-                        layer-type="overlay"
-                        :name="gpx.id">
+                    :visible="gpx.year === currentYear"
+                    v-for="gpx in gpxs" :key="gpx.id"
+                    layer-type="overlay"
+                    :name="gpx.id"
+                    ref="gpxs">
                     <l-gpx
-                            :visible=true
-                            :gpx-file="gpx.fileName"
-                            :gpx-options="{
-                                async: true,
-                                 polyline_options: {color: gpx.color}
-                            }"
-                            @gpx-loaded="onGpxLoaded">
+                        :visible=true
+                        :gpx-file="gpx.fileName"
+                        :gpx-options="{
+                            async: true,
+                            polyline_options: {color: gpx.color}
+                        }"
+                        @gpx-loaded="onGpxLoaded">
                         <div v-for="gpxContent in gpxContents" :key="gpxContent.id">
                             <l-popup v-if="gpxContent.id === gpx.id" :content="gpxContent.content" />
                         </div>
-                        <!--                        <button class="button" @click="onClickButton">Hide/Show Track</button>-->
                     </l-gpx>
                 </l-layer-group>
             </l-layer-group>
@@ -55,10 +56,12 @@
 <script>
     import axios from 'axios';
     import L from 'leaflet';
-    import {LControlLayers, LLayerGroup, LMap, LMarker, LPopup, LTileLayer} from 'vue2-leaflet';
-    // import LLayerGroup from './LLayerGroup';
+    import {LTileLayer, LLayerGroup, LMap, LMarker, LPopup} from 'vue2-leaflet';
     import LGpx from './LGpx';
+    import LControlLayersTree from './LControlLayersTree'
+    import * as Utils from '../utils'
     import gpxList from '../../public/gpxs/list.json';
+    import Config from '../config.json';
 
     export default {
         name: 'map-layers',
@@ -68,114 +71,122 @@
             LMarker,
             LPopup,
             LLayerGroup,
-            LControlLayers,
-            LGpx
+            LGpx,
+            LControlLayersTree
         },
         mounted() {
-            // this.importAll(require.context('@/assets/gpxs/'));
-            // this.$nextTick(() => {
-            //this.map = this.$refs.map.mapObject;
-            // });
+            this.map = this.$refs.map.mapObject;
+
+            this.$nextTick(() => {
+                const tree = this.constructTree(this.$refs);
+                this.baseTree = tree.baseTree
+                this.overlaysTree = tree.overlaysTree
+                this.childLoaded = true;
+            });
         },
         data() {
             return {
-                show: true,
-                zoom: 10,
-                center: [47.46, -2.7750773],
+                map: this.map,
+                childLoaded: false,
+                zoom: Config.zoom,
+                center: Config.center,
+                tileProviders: Config.tileProviders,
                 markers: [],
                 content: '',
                 gpxs: gpxList.gpxFiles,
                 gpxContents: [],
-                url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-                attribution: '&copy; <a href="http://osm.org/copyright">OpenStreetMap</a>',
-                seaUrl: 'https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png',
-                seaAttribution: '&copy; <a href="http://openseamap.org">OpenSeaMap</a>'
+                baseTree: {},
+                overlaysTree: {},
+                currentYear: new Date().getFullYear()
             }
         },
         methods: {
-            // importAll(r) {
-            //     r.keys().forEach(key => (this.gpxs.push({pathLong: r(key), pathShort: key})));
-            //     console.log(this.gpxs)
-            // },
-            basename: function (str, sep) {
-                return str.substr(str.lastIndexOf(sep) + 1);
-            },
-            // strip_extension: function (str) {
-            //     return str.substr(0, str.lastIndexOf('.'));
-            // },
-            formatDate: function (stringDate, locale = 'fr') {
-                const d = new Date(stringDate);
-                const year = new Intl.DateTimeFormat(locale, {year: 'numeric'}).format(d);
-                const month = new Intl.DateTimeFormat(locale, {month: 'long'}).format(d);
-                const date = new Intl.DateTimeFormat(locale, {day: '2-digit'}).format(d);
-                const hour = new Intl.DateTimeFormat(locale, {hour: '2-digit'}).format(d);
-                let minute = parseInt(new Intl.DateTimeFormat(locale, {minute: '2-digit'}).format(d));
+            constructTree: function (refs) {
+                const baseChildren = [];
+                const overlayChildren = [];
 
-                if (minute < 10) {
-                    minute = `0${minute}`;
+                refs.tileProviders.forEach((layer) => {
+                    if (layer.layerType === 'base') {
+                        baseChildren.push({label: layer.name, layer: layer.mapObject});
+                    }
+
+                    if (layer.layerType === 'overlay') {
+                        overlayChildren.push({label: layer.name, layer: layer.mapObject});
+                    }
+                })
+
+                overlayChildren.push({label: refs.avurnav.name, layer: refs.avurnav.mapObject});
+                overlayChildren.push({
+                    label: 'GPX',
+                    selectAllCheckbox: true,
+                    children: this.gpxTree(refs.gpxs)
+                });
+
+                return {
+                    baseTree: {
+                        label: 'Cartes',
+                        noShow: true,
+                        children: baseChildren
+                    },
+                    overlaysTree: {
+                        label: 'overlay',
+                        noShow: true,
+                        children: overlayChildren
+                    }
+                };
+            },
+            gpxTree: (gpxs) => {
+                const gpxChildren = [];
+                const sortedGpxs = {}
+
+                gpxs.forEach((gpx) => {
+                    const year = gpx.name.split('-')[0];
+                    if (!Object.prototype.hasOwnProperty.call(sortedGpxs, year)) {
+                        sortedGpxs[year] = [{label: gpx.name, layer: gpx.mapObject}];
+                    } else {
+                        sortedGpxs[year].push({label: gpx.name, layer: gpx.mapObject})
+                    }
+                })
+
+                for (const [year, subChildren] of Object.entries(sortedGpxs)) {
+                    gpxChildren.push({
+                        label: year,
+                        collapsed: true,
+                        selectAllCheckbox: true,
+                        children: subChildren
+                    });
                 }
-                return `${date} ${month} ${year} à ${hour}${minute}`;
-            },
-            // Pad to 2 or 3 digits, default is 2
-            pad: function (n, z) {
-                z = z || 2;
-                return ('00' + n).slice(-z);
-            },
-            msToTime: function (s) {
-                const ms = s % 1000;
-                s = (s - ms) / 1000;
-                const secs = s % 60;
-                s = (s - secs) / 60;
-                const mins = s % 60;
-                const hrs = (s - mins) / 60;
-
-                // return this.pad(hrs) + 'h' + this.pad(mins) + 'min ' + this.pad(secs) + 's.' + this.pad(ms, 3);
-                return this.pad(hrs) + 'h' + this.pad(mins) + 'min ' + this.pad(secs) + 's';
-            },
-            roundTwoDigits: function (num) {
-                return Math.round((num + Number.EPSILON) * 100) / 100;
+                return gpxChildren;
             },
             onGpxLoaded: function (loadedEvent) {
-                // const {mapObject} = this.$refs.map;
                 const gpxMapObject = loadedEvent.target;
-                const id = this.basename(gpxMapObject._gpx, '/');
+                const id = Utils.basename(gpxMapObject._gpx, '/');
 
                 const distance = gpxMapObject.get_distance();
                 const speed = gpxMapObject.get_total_speed();
-                const content = `<div>Début : ${this.formatDate(gpxMapObject.get_start_time())}</div>
-<div>Fin : ${this.formatDate(gpxMapObject.get_end_time())}</div>
-<div>Durée totale : ${this.msToTime(gpxMapObject.get_total_time())}</div>
-<div>Distance parcourue : ${this.roundTwoDigits(distance / 1852)}nm (${this.roundTwoDigits(distance / 1000)}km)</div>
-<div>Vitesse moyenne : ${this.roundTwoDigits((speed * 1000) / 1852)} nœuds (${this.roundTwoDigits(speed)}km/h)</div>`;
+                const content = `<div>Début : ${Utils.formatDate(gpxMapObject.get_start_time())}</div>
+<div>Fin : ${Utils.formatDate(gpxMapObject.get_end_time())}</div>
+<div>Durée totale : ${Utils.msToTime(gpxMapObject.get_total_time())}</div>
+<div>Distance parcourue : ${Utils.roundTwoDigits(distance / 1852)}nm (${Utils.roundTwoDigits(distance / 1000)}km)</div>
+<div>Vitesse moyenne : ${Utils.roundTwoDigits((speed * 1000) / 1852)} nœuds (${Utils.roundTwoDigits(speed)}km/h)</div>`;
                 this.gpxContents.push({id, content});
             },
-            // onClickButton: function () {
-            //     this.visible = !this.visible;
-            // },
-            cleanDate: function (date) {
+            iconColor: (date) => {
                 if (date === null) {
-                    return 'Inconnue'
+                    return 'blue';
                 }
-                return date
-            },
-            iconColor: function (date) {
-                if (date === null) {
-                    return 'blue'
+                date = new Date(date);
+                const today = new Date();
+
+                if (today <= Utils.addDays(date, 2)) {
+                    return 'red';
                 }
-                date = new Date(date)
-                const today = new Date()
-                if (today <= this.addDays(date, 2)) {
-                    return 'red'
+
+                if (today <= Utils.addDays(date, 8)) {
+                    return 'orange';
                 }
-                if (today <= this.addDays(date, 8)) {
-                    return 'orange'
-                }
-                return 'blue'
-            },
-            addDays: function (date, days) {
-                let result = new Date(date)
-                result.setDate(result.getDate() + days)
-                return result
+
+                return 'blue';
             }
         },
         created() {
@@ -202,7 +213,7 @@
                 ${el['content']}
               </div>
               <div class="block small">
-                Dates prévues : ${this.cleanDate(el['valid_from'])} — ${this.cleanDate(el['valid_until'])}
+                Dates prévues : ${Utils.cleanDate(el['valid_from'])} — ${Utils.cleanDate(el['valid_until'])}
               </div>
               <div class="more small">
                 Plus d'informations sur <a href="${el['url']}">le site de la préfecture maritime</a>.
