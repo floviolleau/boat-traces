@@ -1,6 +1,6 @@
 {
     "name": "boat-traces",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "private": true,
     "description": "Display the traces of a boat on a map from GPX files",
     "author": "Florent VIOLLEAU",
