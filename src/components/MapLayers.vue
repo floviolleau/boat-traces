@@ -160,7 +160,8 @@
             },
             onGpxLoaded: function (loadedEvent) {
                 const gpxMapObject = loadedEvent.target;
-                const id = Utils.basename(gpxMapObject._gpx, '/');
+                let id = Utils.basename(gpxMapObject._gpx, '/');
+                id = Utils.stripExtension(id);
 
                 const distance = gpxMapObject.get_distance();
                 const speed = gpxMapObject.get_total_speed();
