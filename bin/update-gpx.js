@@ -1,11 +1,27 @@
 const path = require('path');
 const fs = require('fs');
 const randomColor = require('randomcolor');
+const yargs = require('yargs');
 
 const ROOT_FOLDER = path.resolve(__dirname, '..');
 const gpxFolderName = 'gpxs';
-const GPX_FOLDER = path.resolve(ROOT_FOLDER, 'public', gpxFolderName);
+let GPX_FOLDER = path.resolve(ROOT_FOLDER, 'public', gpxFolderName);
 
+yargs.options({
+    folder: {
+        alias: 'f',
+        describe: 'What gpx folder to update (default public/gpx)',
+        type: 'string'
+    }
+});
+
+const destination = yargs.argv['folder'];
+if (destination) {
+    GPX_FOLDER = path.resolve(ROOT_FOLDER, destination);
+}
+
+
+console.log('\nPath where GPXS files are located: ', GPX_FOLDER)
 const stripExtension = (str) => {
     return str.substr(0, str.lastIndexOf('.'));
 }

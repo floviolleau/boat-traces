@@ -5,9 +5,10 @@
     "description": "Display the traces of a boat on a map from GPX files",
     "author": "Florent VIOLLEAU",
     "scripts": {
+        "update:gpx:dist": "node ./bin/update-gpx.js -- -f dist",
         "update:gpx": "node ./bin/update-gpx.js",
-        "serve": "npm-run-all update:gpx vue-serve",
-        "build": "npm-run-all update:gpx vue-build",
+        "serve": "npm-run-all vue-serve update:gpx",
+        "build": "npm-run-all vue-build update:gpx",
         "lint": "vue-cli-service lint",
         "vue-build": "vue-cli-service build",
         "vue-serve": "vue-cli-service serve"
@@ -22,7 +23,8 @@
         "register-service-worker": "^1.7.1",
         "vue": "^2.6.11",
         "vue2-leaflet": "^2.6.0",
-        "vue2-leaflet-gpx": "^1.0.0"
+        "vue2-leaflet-gpx": "^1.0.0",
+        "yargs": "^16.1.0"
     },
     "devDependencies": {
         "@types/leaflet": "^1.5.19",
