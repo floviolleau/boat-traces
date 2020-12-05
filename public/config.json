@@ -29,5 +29,6 @@
             "url": "https://tiles.openseamap.org/seamark/{z}/{x}/{y}.png",
             "attribution": "&copy; <a href=\"http://openseamap.org\">OpenSeaMap</a>"
         }
-    ]
+    ],
+    "harbourUrl": "https://harbour.openseamap.org/getHarbours.php"
 }

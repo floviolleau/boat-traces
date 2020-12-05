@@ -1,5 +1,5 @@
 <template>
-    <div class="map">
+    <div class="map" v-if="!isFetching">
         <l-map :zoom="zoom" :center="center" ref="map">
             <l-tile-layer
                 v-for="tileProvider in tileProviders"
@@ -59,9 +59,7 @@
     import {LTileLayer, LLayerGroup, LMap, LMarker, LPopup} from 'vue2-leaflet';
     import LGpx from './LGpx';
     import LControlLayersTree from './LControlLayersTree'
-    import * as Utils from '../utils'
-    import gpxList from '../../public/gpxs/list.json';
-    import Config from '../config.json';
+    import * as Utils from '../utils';
 
     export default {
         name: 'map-layers',
@@ -75,25 +73,30 @@
             LControlLayersTree
         },
         mounted() {
-            this.map = this.$refs.map.mapObject;
+            this.$watch('isFetching', function (newVal) {
+                if (!newVal) {
+                    this.map = this.$refs.map.mapObject;
 
-            this.$nextTick(() => {
-                const tree = this.constructTree(this.$refs);
-                this.baseTree = tree.baseTree
-                this.overlaysTree = tree.overlaysTree
-                this.childLoaded = true;
-            });
+                    this.$nextTick(() => {
+                    const tree = this.constructTree(this.$refs);
+                    this.baseTree = tree.baseTree
+                    this.overlaysTree = tree.overlaysTree
+                    this.childLoaded = true;
+                    });
+                }
+            })
         },
         data() {
             return {
+                isFetching: true,
                 map: this.map,
                 childLoaded: false,
-                zoom: Config.zoom,
-                center: Config.center,
-                tileProviders: Config.tileProviders,
+                zoom: null,
+                center: [],
+                tileProviders: [],
                 markers: [],
                 content: '',
-                gpxs: gpxList.gpxFiles,
+                gpxs: [],
                 gpxContents: [],
                 baseTree: {},
                 overlaysTree: {},
@@ -190,7 +193,16 @@
                 return 'blue';
             }
         },
-        created() {
+        async created() {
+            const responseGpx = await axios.get('gpxs/list.json');
+            this.gpxs = responseGpx.data.gpxFiles;
+            const responseConfig = await axios.get('config.json');
+            const {zoom, center, tileProviders} = responseConfig.data;
+            this.zoom = zoom;
+            this.center = center;
+            this.tileProviders = tileProviders;
+            this.isFetching = false;
+
             ['atlantique', 'manche', 'méditerranée'].forEach(region => {
                 axios.get(`https://avurnav.antoine-augusti.fr/avurnavs/regions/${region}`).then(response => {
                     response.data.forEach(el => {
