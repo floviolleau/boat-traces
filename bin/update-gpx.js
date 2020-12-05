@@ -17,7 +17,7 @@ yargs.options({
 
 const destination = yargs.argv['folder'];
 if (destination) {
-    GPX_FOLDER = path.resolve(ROOT_FOLDER, destination);
+    GPX_FOLDER = path.resolve(ROOT_FOLDER, destination, gpxFolderName);
 }
 
 
